@@ -2921,6 +2921,24 @@
                 Apagar tudo
               </button>
               <button
+                class="btn-modal"
+                id="ragReindexAllBtn"
+                title="Reprocessar TODOS os documentos do RAG"
+                style="
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 6px;
+                  font-size: 13px;
+                  padding: 8px 12px;
+                  background: var(--color-primary);
+                  color: #fff;
+                  border: none;
+                "
+              >
+                <i data-lucide="refresh-ccw" style="width: 14px; height: 14px"></i>
+                Reprocessar todos
+              </button>
+              <button
                 class="btn-modal btn-confirm"
                 id="ragDocUploadBtn"
                 style="
@@ -3027,6 +3045,9 @@
             >
               <thead>
                 <tr>
+                  <th class="users-th" style="width:36px;text-align:center">
+                    <input type="checkbox" id="ragDocsSelectAll" title="Selecionar todos" />
+                  </th>
                   <th class="users-th">Título</th>
                   <th class="users-th">Categoria</th>
                   <th class="users-th">Origem</th>
@@ -3036,6 +3057,32 @@
               </thead>
               <tbody id="ragDocsTableBody"></tbody>
             </table>
+            <div
+              id="ragDocsBulkBar"
+              style="
+                display: none;
+                position: sticky;
+                bottom: 0;
+                margin-top: 12px;
+                padding: 10px 16px;
+                background: var(--bg-secondary, #fff);
+                border-top: 1px solid var(--border-color, #e5e7eb);
+                align-items: center;
+                gap: 12px;
+                justify-content: flex-end;
+                z-index: 5;
+              "
+            >
+              <span id="ragDocsBulkCount" style="font-size: 13px; color: var(--text-secondary)">0 selecionado(s)</span>
+              <button
+                id="ragReindexSelectedBtn"
+                class="btn-modal btn-confirm"
+                style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 8px 14px"
+              >
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i>
+                Reprocessar selecionados
+              </button>
+            </div>
           </div>
         </section>
 
@@ -3343,6 +3390,29 @@
         </div>
       </div>
     </div>
+
+    <!-- Upload Document Modal (category picker) -->
+    <div class="confirm-modal-backdrop" id="uploadDocModal" style="display:none">
+      <div class="confirm-modal" style="max-width: 460px">
+        <h3 class="confirm-title">Adicionar Documento ao RAG</h3>
+        <p class="confirm-text" id="uploadDocFileLabel" style="word-break:break-all"></p>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:16px">
+          <div>
+            <label for="uploadDocCategorySelect" style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px;color:var(--text-secondary)">Categoria</label>
+            <select id="uploadDocCategorySelect" style="width:100%;padding:10px 12px;border-radius:8px;background:var(--bg-input,#1f1f1f);color:var(--text-primary);border:1px solid var(--border-color);font-size:0.95rem"></select>
+            <div id="uploadDocCategoryHint" style="font-size:0.78rem;color:var(--text-secondary);margin-top:6px;line-height:1.4"></div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;font-size:0.8rem;color:var(--text-secondary);line-height:1.45">
+            Se já existir um arquivo com o mesmo nome na pasta da categoria, ele será <strong>substituído</strong> e somente esse documento será re-indexado no RAG.
+          </div>
+        </div>
+        <div class="err-msg" id="uploadDocModalError" style="display:none"></div>
+        <div class="confirm-actions">
+          <button class="btn-modal btn-cancel" id="uploadDocCancelBtn">Cancelar</button>
+          <button class="btn-modal btn-confirm" id="uploadDocConfirmBtn">Enviar</button>
+        </div>
+      </div>
+    </div>
     <script>
       lucide.createIcons();
       marked.setOptions({
@@ -3365,6 +3435,8 @@
       const RAG_DOCS_DELETE_URL = `${API_BASE}/zanaflex-rag-doc-delete`;
       const RAG_PURGE_URL = `${API_BASE}/zanaflex-rag-purge-all`;
       const RAG_UPSERT_URL = `${API_BASE}/zanaflex-rag-upsert`;
+      const RAG_UPLOAD_URL = `${API_BASE}/zanaflex-rag-upload`;
+      const RAG_REINDEX_URL = `${API_BASE}/zanaflex-rag-reindex`;
 
       let currentSessionId = null;
       let sessions = [];
@@ -6320,7 +6392,7 @@
             headerTr.style.cursor = "pointer";
             headerTr.style.background = "var(--bg-secondary, rgba(0,0,0,0.04))";
             headerTr.innerHTML = `
-              <td class="users-th" colspan="5" style="font-weight:600;user-select:none">
+              <td class="users-th" colspan="6" style="font-weight:600;user-select:none">
                 <span style="display:inline-flex;align-items:center;gap:8px">
                   <i data-lucide="${collapsed ? "chevron-right" : "chevron-down"}" style="width:16px;height:16px"></i>
                   <i data-lucide="folder" style="width:14px;height:14px;opacity:0.7"></i>
@@ -6342,7 +6414,14 @@
                 doc.category_code ||
                 '<span style="opacity:0.4">—</span>';
               tr.innerHTML = `
-                <td class="users-th" style="font-weight:500;padding-left:32px">
+                <td class="users-th" style="text-align:center;padding-left:32px">
+                  <input
+                    type="checkbox"
+                    class="rag-doc-check"
+                    data-rag-doc-id="${escapeHtml(doc.id)}"
+                  />
+                </td>
+                <td class="users-th" style="font-weight:500">
                   ${
                     doc.url
                       ? `<a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener" style="color:var(--text-primary);text-decoration:none">${escapeHtml(title)}</a>`
@@ -6352,9 +6431,19 @@
                 <td class="users-th" style="font-size:0.85rem">${escapeHtml(catTxt)}</td>
                 <td class="users-th">${ragSourceBadge(doc)}</td>
                 <td class="users-th">${formatRagDate(lastIdx)}</td>
-                <td class="users-th" style="text-align:right">
+                <td class="users-th" style="text-align:right;white-space:nowrap">
                   <button
-                    class="btn-modal btn-cancel"
+                    class="btn-modal rag-reindex-btn"
+                    data-rag-reindex-id="${escapeHtml(doc.id)}"
+                    data-rag-reindex-title="${escapeHtml(title)}"
+                    style="background:var(--color-primary);color:#fff;border:none;padding:6px 10px;font-size:12px;margin-right:6px"
+                    title="Reprocessar este documento"
+                  >
+                    <i data-lucide="refresh-cw" style="width:12px;height:12px"></i>
+                    Reprocessar
+                  </button>
+                  <button
+                    class="btn-modal btn-cancel rag-delete-btn"
                     data-rag-doc-id="${escapeHtml(doc.id)}"
                     data-rag-doc-title="${escapeHtml(title)}"
                     style="background:#dc2626;color:#fff;border:none;padding:6px 12px;font-size:12px"
@@ -6393,7 +6482,7 @@
               }
             });
           });
-          tbody.querySelectorAll("button[data-rag-doc-id]").forEach((btn) => {
+          tbody.querySelectorAll("button.rag-delete-btn").forEach((btn) => {
             btn.addEventListener("click", (ev) => {
               ev.stopPropagation();
               confirmDeleteRagDoc(
@@ -6402,6 +6491,34 @@
               );
             });
           });
+          tbody.querySelectorAll("button.rag-reindex-btn").forEach((btn) => {
+            btn.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              reindexRagDocs(
+                [btn.dataset.ragReindexId],
+                btn.dataset.ragReindexTitle,
+              );
+            });
+          });
+          tbody.querySelectorAll("input.rag-doc-check").forEach((cb) => {
+            cb.addEventListener("click", (ev) => ev.stopPropagation());
+            cb.addEventListener("change", updateRagBulkBar);
+          });
+          const selectAll = document.getElementById("ragDocsSelectAll");
+          if (selectAll) {
+            selectAll.checked = false;
+            selectAll.onchange = () => {
+              tbody
+                .querySelectorAll("input.rag-doc-check")
+                .forEach((cb) => {
+                  if (cb.closest("tr").style.display !== "none") {
+                    cb.checked = selectAll.checked;
+                  }
+                });
+              updateRagBulkBar();
+            };
+          }
+          updateRagBulkBar();
         } catch (err) {
           setStatus("Erro ao carregar documentos do RAG", "error");
           if (empty) {
@@ -6437,6 +6554,59 @@
         }
       }
 
+      function updateRagBulkBar() {
+        const bar = document.getElementById("ragDocsBulkBar");
+        const countEl = document.getElementById("ragDocsBulkCount");
+        const selectedBtn = document.getElementById("ragReindexSelectedBtn");
+        if (!bar) return;
+        const checks = document.querySelectorAll(
+          "#ragDocsTableBody input.rag-doc-check:checked",
+        );
+        const n = checks.length;
+        if (countEl) countEl.textContent = n + " selecionado(s)";
+        if (selectedBtn) selectedBtn.disabled = n === 0;
+        bar.style.display = n > 0 ? "flex" : "none";
+      }
+
+      async function reindexRagDocs(fileIds, displayName) {
+        if (!fileIds || fileIds.length === 0) return;
+        const label =
+          fileIds.length === 1
+            ? `"${displayName || fileIds[0]}"`
+            : `${fileIds.length} documentos`;
+        const ok = window.confirm(
+          `Reprocessar ${label}?\n\nO arquivo continuará no Drive. O conteúdo será re-extraído e re-indexado no vetor (substituindo a versão anterior).`,
+        );
+        if (!ok) return;
+        try {
+          showRagBusy(`Reprocessando ${label}... isso pode demorar alguns minutos.`);
+          setStatus(`Reprocessando ${label}...`, "warning");
+          const resp = await fetch(RAG_REINDEX_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_ids: fileIds }),
+          });
+          if (!resp.ok) {
+            const txt = await resp.text().catch(() => "");
+            throw new Error(txt || "reindex failed");
+          }
+          setStatus(
+            `Reprocessamento de ${label} enfileirado. A página recarregará em instantes.`,
+            "success",
+          );
+          // O backend responde "queued"; o processo continua em background.
+          // Aguarda um pouco e recarrega para refletir last_indexed_at atualizado.
+          setTimeout(() => loadRagDocs(), 4000);
+        } catch (err) {
+          setStatus(
+            `Erro ao reprocessar: ${err.message || err}`,
+            "error",
+          );
+        } finally {
+          hideRagBusy();
+        }
+      }
+
       // Read a File into a base64 string (without the `data:...;base64,` prefix).
       function fileToBase64(file) {
         return new Promise((resolve, reject) => {
@@ -6464,46 +6634,109 @@
           .slice(0, 96);
       }
 
+      // ===== Modal de categoria para upload =====
+      function openUploadDocModal(file) {
+        return new Promise(async (resolve) => {
+          // Garante categorias carregadas
+          try { if (allCategories.length === 0) await fetchAllCategories(); } catch (_) {}
+
+          const modal = document.getElementById("uploadDocModal");
+          const select = document.getElementById("uploadDocCategorySelect");
+          const label = document.getElementById("uploadDocFileLabel");
+          const hint = document.getElementById("uploadDocCategoryHint");
+          const errEl = document.getElementById("uploadDocModalError");
+          const cancelBtn = document.getElementById("uploadDocCancelBtn");
+          const confirmBtn = document.getElementById("uploadDocConfirmBtn");
+
+          // Populate options (categoria precisa ter drive_folder_id)
+          const usable = (allCategories || []).filter(
+            (c) => c.drive_folder_id && String(c.drive_folder_id).trim().length > 0
+          );
+          select.innerHTML = "";
+          if (usable.length === 0) {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = "— Nenhuma categoria com pasta Drive configurada —";
+            select.appendChild(opt);
+            select.disabled = true;
+            confirmBtn.disabled = true;
+            hint.textContent =
+              "Cadastre uma categoria com ID da pasta do Google Drive em Categorias antes de enviar.";
+          } else {
+            select.disabled = false;
+            confirmBtn.disabled = false;
+            usable.forEach((c) => {
+              const opt = document.createElement("option");
+              opt.value = c.code;
+              opt.textContent = c.name ? `${c.code} — ${c.name}` : c.code;
+              select.appendChild(opt);
+            });
+            // Default: 'IT' se existir, senão a primeira
+            const def = usable.find((c) => c.code === "IT") || usable[0];
+            select.value = def.code;
+            hint.textContent = `${usable.length} categoria(s) disponível(is). O documento irá para a pasta vinculada.`;
+          }
+
+          label.innerHTML = "Arquivo: <strong>" + escapeHtml(file.name) + "</strong>";
+          errEl.style.display = "none";
+          errEl.textContent = "";
+          modal.style.display = "flex";
+
+          const cleanup = () => {
+            modal.style.display = "none";
+            cancelBtn.removeEventListener("click", onCancel);
+            confirmBtn.removeEventListener("click", onConfirm);
+            modal.removeEventListener("click", onBackdrop);
+            document.removeEventListener("keydown", onKey);
+          };
+          const onCancel = () => { cleanup(); resolve(null); };
+          const onConfirm = () => {
+            const code = (select.value || "").trim();
+            if (!code) {
+              errEl.textContent = "Selecione uma categoria.";
+              errEl.style.display = "block";
+              return;
+            }
+            cleanup();
+            resolve(code);
+          };
+          const onBackdrop = (e) => { if (e.target === modal) onCancel(); };
+          const onKey = (e) => {
+            if (e.key === "Escape") onCancel();
+            else if (e.key === "Enter") onConfirm();
+          };
+          cancelBtn.addEventListener("click", onCancel);
+          confirmBtn.addEventListener("click", onConfirm);
+          modal.addEventListener("click", onBackdrop);
+          document.addEventListener("keydown", onKey);
+          setTimeout(() => { try { select.focus(); } catch (_) {} }, 50);
+        });
+      }
+
       async function uploadRagDoc(file) {
         if (!file) return;
         try {
-          // Ensure categories are loaded so we can show the picker.
-          if (allCategories.length === 0) await fetchAllCategories();
-          const codes = allCategories.map((c) => c.code);
-          const defaultCode = codes.includes("IT") ? "IT" : (codes[0] || "IT");
-          const promptMsg =
-            `Categoria do documento (código):\n\n` +
-            (codes.length
-              ? `Disponíveis: ${codes.join(", ")}`
-              : `Nenhuma categoria cadastrada — será usada "${defaultCode}".`);
-          const categoryCode = window.prompt(promptMsg, defaultCode);
-          if (categoryCode === null) return; // user cancelled
-          const slug = slugifyFilename(file.name);
-          const fileId = `${slug}-${Date.now()}`;
-          const title = file.name.replace(/\.[^.]+$/, "");
+          const categoryCode = await openUploadDocModal(file);
+          if (!categoryCode) return; // user cancelled
           showRagBusy(
             `Indexando "${file.name}"... isso pode levar alguns minutos.`,
           );
           setStatus(`Indexando ${file.name}... (pode demorar)`, "warning");
-          const content_base64 = await fileToBase64(file);
-          const payload = {
-            file_id: fileId,
-            title,
-            code: slug,
-            category_code: (categoryCode || defaultCode).trim().toUpperCase(),
-            mime_type: file.type || "application/octet-stream",
-            content_base64,
-          };
-          const resp = await fetch(RAG_UPSERT_URL, {
+          const formData = new FormData();
+          formData.append("data", file);
+          formData.append("categoria", categoryCode);
+          const resp = await fetch(RAG_UPLOAD_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: formData,
           });
           if (!resp.ok) {
             const txt = await resp.text().catch(() => "");
             throw new Error("Upload failed: " + (txt || resp.status));
           }
-          setStatus(`${file.name} adicionado ao RAG!`, "success");
+          let result = null;
+          try { result = await resp.json(); } catch (_) {}
+          const action = result && result.action === "replace" ? "substituído" : "adicionado";
+          setStatus(`${file.name} ${action} no RAG!`, "success");
           await loadRagDocs();
         } catch (err) {
           setStatus(`Erro ao indexar ${file.name}: ${err.message || err}`, "error");
@@ -6560,6 +6793,33 @@
           if (!file) return;
           await uploadRagDoc(file);
           ragDocFileInput.value = ""; // reset
+        });
+      }
+
+      const ragReindexSelectedBtn = document.getElementById(
+        "ragReindexSelectedBtn",
+      );
+      if (ragReindexSelectedBtn) {
+        ragReindexSelectedBtn.addEventListener("click", () => {
+          const ids = Array.from(
+            document.querySelectorAll(
+              "#ragDocsTableBody input.rag-doc-check:checked",
+            ),
+          ).map((cb) => cb.dataset.ragDocId);
+          if (ids.length === 0) return;
+          reindexRagDocs(ids);
+        });
+      }
+      const ragReindexAllBtn = document.getElementById("ragReindexAllBtn");
+      if (ragReindexAllBtn) {
+        ragReindexAllBtn.addEventListener("click", () => {
+          const ids = Array.from(
+            document.querySelectorAll(
+              "#ragDocsTableBody input.rag-doc-check",
+            ),
+          ).map((cb) => cb.dataset.ragDocId);
+          if (ids.length === 0) return;
+          reindexRagDocs(ids);
         });
       }
 
