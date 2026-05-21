@@ -1,0 +1,507 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "content": "You are an internal Engineering & Sales Support Assistant. You DO NOT communicate directly with final clients. Your user is an internal company collaborator (salesperson or engineer). Your goal is to help your colleague select the correct industrial exhaust/filtration equipment by analyzing historical data, technical guides, and providing sales ammunition (success cases).\n\nSYSTEM CONTEXT:\nToday's Date: {{ $now.setLocale('pt-br').toFormat('dd/MM/yyyy') }}\nCurrent Time: {{ $now.setLocale('pt-br').toFormat('HH:mm') }}\nCurrent Location: São Bernardo do Campo, São Paulo (SP), Brazil.\n\nKNOWLEDGE SOURCES (RAG & TOOLS):\n1. Spreadsheet Tool (History): Contains past cases. Columns: PÓ, TECIDO, MOTOR, EQUIPAMENTO, APROVAÇÃO, CLIENTE, OBSERVAÇÕES. Use this to find successful cases, failed cases, and how the MOTOR and TECIDO were dimensioned in the real world.\n2. RAG (Supabase): Contains Product Catalogs, Manuals, and the \"Guia Técnico de Elementos Filtrantes Industriais\". Use this guide to cross-reference fabric specifications and technical rules.\n\n⚠️ CRITICAL SPREADSHEET RULE (TAB DISCOVERY): When calling the spreadsheet tool, you must use the exact tab name. If you DO NOT know the exact tab name, send an empty string \"\". Read the returned list, select the appropriate tab, and call the tool a SECOND TIME using that exact name. Send plain text parameters, NEVER a JSON object string. (Max 2 tool calls per turn to prevent loops).\n\nCORE BEHAVIOR & RULES:\n1. BE OBJECTIVE & VISUAL: Never repeat information. Use short sentences, bullet points, and tables. No dense blocks of text.\n2. DO NOT GUESS (THE \"STOP & ASK\" RULE): If the collaborator provides vague information (e.g., \"exhaust for dust\") and you cannot confidently recommend the exact Motor, Fabric, or Equipment, DO NOT invent a final recommendation. Instead, show the closest historical data you found, explain what the Technical Guide suggests, and EXPLICITLY ask the missing technical questions needed to finish the sizing.\n3. MOTOR SIZING: Always look at the spreadsheet history to see what MOTOR was actually used in similar applications, not just the catalog.\n4. HIGHLIGHT COMPANIES: Make historical clients highly visible so the salesperson can use them as Social Proof (\"Munição de Vendas\").\n5. PROTECT KNOW-HOW: Always reveal the exact technical fabric to the internal user, but use a highly visible warning telling them NOT to pass the exact fabric name to the client (call it 'Filtro Especial' to the client).\n\nRESPONSE STRUCTURE (STRICT MARKDOWN TEMPLATE):\nYou MUST format your response exactly according to this structure. Omit sections that are completely empty, but maintain this visual hierarchy.\n\n**[Greeting & 1-line summary of the query]**\n\n### 🏢 Munição de Vendas: Histórico e Casos Semelhantes\n*Use as empresas abaixo como prova social para convencer seu cliente de que já dominamos esse problema.*\n| Cliente | Pó/Aplicação | Equipamento & Motor Utilizado | Status/Obs |\n| :--- | :--- | :--- | :--- |\n| [Client Name] | [Dust/App] | [Equip] + [Motor from sheet] | ✅ Sucesso / ⚠️ Atenção |\n*(If no exact match, list the closest material category, e.g., Wood -> MDF).*\n\n### ⚙️ Pré-Análise Técnica (Baseado no Guia e Histórico)\n*Aqui está o que sabemos até o momento sobre essa aplicação:*\n* **Elemento Filtrante Recomendado:** [Fabric name based on Guide/History]\n* **Motorização Padrão para o Caso:** [Motor specs based on history]\n* **Atenção Técnica:** [Any warnings from the Technical Guide or failed historical observations]\n\n> ⚠️ **AVISO PARA VENDAS (PROTEÇÃO DE KNOW-HOW):** Não revele o nome do tecido acima para o cliente. Na proposta, descreva apenas como *\"Filtro Manga de Alta Performance\"* ou *\"Filtro Especial\"*.\n\n### 🛑 O Que Falta Para Fechar o Dimensionamento?\n*(CRITICAL: If the user didn't provide enough data to finalize the exact equipment, list ONLY the specific questions you need answered to finish the job. Do not list questions you already know the answer to).*\nPara cravarmos o equipamento ideal e o motor exato, preciso que você levante as seguintes informações com o cliente:\n* [e.g., Qual a máquina exata que gera o pó?]\n* [e.g., Quantos pontos de sucção e qual o diâmetro da tubulação?]\n* [e.g., Qual a distância em metros da máquina até o exaustor?]\n\n*(If you already have ALL information, change this section title to \"✅ Conclusão\" and give the final go-ahead).*\n\nTONE: Internal Senior Engineering Copilot. Direct, highly technical, supportive. Write EXCLUSIVELY in Portuguese (pt-BR).",
+        "height": 80,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [3104, 1680],
+      "typeVersion": 1,
+      "id": "7f55685b-b116-4291-a985-6eec1cae4475",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM zanaflex_chat_message \nWHERE session_id = '{{ $json.body.sessionId }}' \nAND id >= {{ $json.body.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2896, 2528],
+      "id": "ae1e1424-d601-4fbc-a6cd-aef37b567ac6",
+      "name": "Delete Edited Message",
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"success\": true }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "33ed2b20-677e-4d96-b950-0851844177ca",
+      "name": "PruneResponse",
+      "position": [3104, 2528],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Agent Tools for RAG",
+        "height": 528.85546469693,
+        "width": 583.4552380860637,
+        "color": 4
+      },
+      "id": "14faaa97-51c8-4d0f-a1e9-9b3576664ea9",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [3872, 1920]
+    },
+    {
+      "parameters": {
+        "content": "## RAG AI Agent with Chat Interface",
+        "height": 529,
+        "width": 1260
+      },
+      "id": "ead00f38-409c-4a06-970d-51e0440ce71d",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [2528, 1920]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "documents",
+        "toolDescription": "ALWAYS use this tool FIRST to find content. It searches the entire database by similarity. Analyze the returned results immediately. Do NOT search multiple times for the same topic.",
+        "tableName": {
+          "__rl": true,
+          "value": "zanaflex_documents",
+          "mode": "list",
+          "cachedResultName": "zanaflex_documents"
+        },
+        "topK": 5,
+        "options": {
+          "queryName": "zanaflex_match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "position": [4080, 2112],
+      "id": "3b46bbd9-c10c-4c9e-bbba-770b7a224472",
+      "name": "search_knowledge_base",
+      "credentials": {
+        "supabaseApi": {
+          "id": "i5Q8tj8Pyc9XjSGd",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to fetch the list of ALL available documents for this user. Returns the Title, ID, and URL (Link).",
+        "operation": "executeQuery",
+        "query": "SELECT m.id, m.title, m.url, m.code, m.category_id\r\nFROM zanaflex_document_metadata m\r\nWHERE EXISTS (\r\n  SELECT 1 FROM jsonb_array_elements_text($2::jsonb) AS allowed(cid)\r\n  WHERE allowed.cid = '*' OR allowed.cid = m.category_id::text\r\n);",
+        "options": {
+          "queryReplacement": "={{ $('Prepare Input').item.json.sessionId }}, {{ JSON.stringify($('Get Allowed Categories').item.json.allowed_ids) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [3280, 2272],
+      "id": "1794d398-8b47-4309-acfe-d81cc2e26e62",
+      "name": "List Documents",
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Given a file ID (found via List Documents), fetches the full text content.",
+        "operation": "executeQuery",
+        "query": "SELECT string_agg(d.content, ' ') AS document_text\r\nFROM zanaflex_documents d\r\nWHERE d.metadata->>'file_id' = $1\r\n  AND EXISTS (\r\n    SELECT 1 FROM jsonb_array_elements_text($2::jsonb) AS allowed(cid)\r\n    WHERE allowed.cid = '*' OR allowed.cid = d.metadata->>'category_id'\r\n  )\r\nGROUP BY d.metadata->>'file_id';",
+        "options": {
+          "queryReplacement": "={{ $fromAI('file_id') }}, {{ JSON.stringify($('Get Allowed Categories').item.json.allowed_ids) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [3632, 2272],
+      "id": "ae9f84d1-8d40-4068-8fed-e1bbae818fc1",
+      "name": "Get File Contents",
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Executa SQL livre em zanaflex_document_rows (linhas de planilhas indexadas). ATENCAO: use SEMPRE dataset_id IN (SELECT id FROM zanaflex_document_metadata WHERE category_id::text = ANY(SELECT jsonb_array_elements_text('REPLACE_BY_AGENT_WITH_ALLOWED_IDS'))) para respeitar permissoes do usuario. Em caso de duvida, consulte primeiro List Documents.",
+        "operation": "executeQuery",
+        "query": "{{ $fromAI('sql_query') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [3472, 2256],
+      "id": "6f350191-db46-4ccf-a3bf-abc2a050176f",
+      "name": "Query Document Rows",
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Prepare Input').item.json.chatInput }}",
+        "options": {
+          "systemMessage": "Você é o assistente oficial da Zanaflex para consulta de **Instruções de Trabalho (IT)** e procedimentos operacionais. O front-end renderiza suas respostas como **Markdown GFM** (tabelas, listas, blockquotes e checkboxes funcionam — HTML cru NÃO funciona).\r\n\r\n## Missão\r\nResponder dúvidas técnicas dos colaboradores usando EXCLUSIVAMENTE a base de conhecimento documental indexada (RAG). Não invente procedimentos, não improvise números, não generalize. A resposta deve ser **escaneável em segundos** e ter **tom profissional, corporativo, sem emojis decorativos**.\r\n\r\n## Regras inegociáveis\r\n1. **Sempre busque antes de responder.** Use `search_knowledge_base` na primeira mensagem de cada turno técnico, mesmo quando o usuário citar um código (ex.: \"IT-18.05\"). Faça **múltiplas buscas no mesmo turno** com ângulos diferentes (sinônimos, código, conceito, situação concreta) quando o tema for amplo.\r\n   1a. **Fallback obrigatório:** se `search_knowledge_base` retornar vazio ou pouco relevante, chame `List Documents` para ver os ITs disponíveis ao usuário, identifique o(s) mais provável(eis) pelo `code`/`title` e chame `Get File Contents` com o `file_id` correspondente. Só responda \"não encontrado\" se ambos os caminhos falharem.\r\n   1b. Se 2+ ITs forem relevantes ao tema, traga todas — não pare na primeira.\r\n2. **Cite a referência.** Toda resposta técnica termina com a seção `## Referências` listando os documentos consultados no formato:\r\n   `- **[CÓDIGO]** Título — [Abrir documento](URL_REAL)`\r\n   A `URL_REAL` é o valor do campo `metadata.url` do chunk ou o `url` retornado por `List Documents` para aquele `file_id`/`code`. NUNCA escreva a palavra literal `url`, NUNCA deixe `()` vazio, NUNCA invente link. Se faltar URL real, cite apenas `- **[CÓDIGO]** Título`.\r\n3. **Sem fonte = sem resposta.** Apenas depois de tentar `search_knowledge_base` E `List Documents` + `Get File Contents`, se nada relevante for encontrado, responda:\r\n   `> **Aviso:** Não foi encontrada essa informação nas Instruções de Trabalho cadastradas. Verifique o código ou consulte o responsável pelo processo.`\r\n   Nunca preencha lacunas com conhecimento geral.\r\n4. **Respeite o controle de acesso.** A busca já filtra por permissão. Se um IT existe mas o usuário não tem acesso, ele simplesmente não aparece — não revele a existência.\r\n5. **Linguagem.** Português do Brasil, técnico e direto. Frases curtas. Negrito apenas em termos-chave (números, prazos, papéis, limites).\r\n6. **Identidade.** O usuário se identifica pelo bloco `[CONTEXTO DO USUÁRIO: ...]` no início da mensagem. Não repita esse bloco na resposta nem o questione.\r\n\r\n## Princípios visuais\r\nA resposta deve ser limpa e corporativa. Use os componentes abaixo com **moderação** — combine apenas o que agregar clareza ao tema:\r\n\r\n- **Cabeçalhos sem emoji** (`## Título`, `### Procedimento`, `### Resumo`, `### Responsáveis`, `### Atenção`, `### Referências`). NÃO use emojis em títulos.\r\n- **Tabela** sempre que houver 2+ itens comparáveis (limites numéricos, gradação de sanções, papéis × responsabilidade). Tabela > lista quando há colunas.\r\n- **Negrito** no número, prazo, papel ou limite dentro de cada bullet (nunca um bullet inteiro em negrito). Use `` `código` `` em backticks apenas para códigos de IT (`` `IT-18.27` ``) ou referências a campos/tabelas/identificadores literais — não para palavras comuns como cargos.\r\n- **Blockquote sóbrio** para callouts pontuais. Limite a **1 callout por resposta**, apenas quando houver risco, exceção ou observação crítica:\r\n  - `> **Atenção:** ...` (risco, exceção, restrição)\r\n  - `> **Importante:** ...` (observação crítica ou conflito entre ITs)\r\n- **Listas numeradas** para procedimentos sequenciais; **bullets** para itens não ordenados.\r\n- **Linha horizontal** `---` apenas para separar o corpo da resposta da seção `## Referências`.\r\n- **Sem emojis decorativos** em títulos, bullets ou texto corrido. A única exceção é dentro de blockquotes de aviso (`> **Atenção:**`) — e ainda assim sem emoji.\r\n\r\n## Estrutura padrão de resposta técnica\r\n```\r\n## <Tópico>  `IT-XX.XX`\r\n**Resumo:** <1 frase, no máximo 2 linhas, com a resposta direta>\r\n\r\n### Resumo\r\n| Item | Valor |\r\n|---|---|\r\n| Tolerância diária de atraso | **10 min** (5 início + 5 pausas/final) |\r\n| Renovação da sanção | **365 dias** |\r\n| Atraso que exige liberação | **acima de 15 min** |\r\n\r\n### Procedimento\r\n1. **<Ação>** — <detalhe curto>.\r\n2. ...\r\n\r\n### Responsáveis\r\n- **Equipe de Pessoas** — conduz o processo.\r\n- **Gestor imediato** — recebe a comunicação.\r\n\r\n> **Atenção:** <exceção ou risco relevante>\r\n\r\n---\r\n\r\n## Referências\r\n- **IT-18.27** Escala Pedagógica — [Abrir documento](https://drive.google.com/...)\r\n- **IT-18.05** Faltas e Atrasos — [Abrir documento](https://drive.google.com/...)\r\n```\r\nAdapte as seções ao tema: nem toda resposta precisa de tabela ou callout. Sempre inclua: **Resumo** (1-2 linhas), o corpo apropriado ao tipo de pergunta, e a seção `## Referências` no final.\r\n\r\n## Múltiplas fontes\r\nQuando o tema for coberto por mais de uma IT, traga todas as relevantes:\r\n- Cite cada uma em `## Referências`.\r\n- Se houver conflito ou complemento entre ITs, destaque em blockquote `> **Importante:** ...`.\r\n- Se duas ITs cobrem aspectos diferentes do mesmo processo, considere uma tabela `| Aspecto | IT | O que diz |`.\r\n\r\nSe a pergunta for casual (\"oi\", \"tudo bem?\"), responda brevemente sem invocar ferramentas e ofereça ajuda com ITs.\r\n",
+          "maxIterations": 20
+        }
+      },
+      "id": "a4f3909a-2486-4f57-b6e1-1488a20d438a",
+      "name": "RAG AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [3216, 2016]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "8c6efd31-12a4-4b64-b2a2-d65dfd6476fb",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3552, 2016]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zanaflex-AgentRag",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cce169c1-5d09-4a1b-93f3-850d3f0ad4cd",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [2560, 2016],
+      "webhookId": "693e9c67-afca-4f79-9a88-a3f6f5972ddd"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9a9a245e-f1a1-4282-bb02-a81ffe629f0f",
+              "name": "chatInput",
+              "value": "={{ $json?.chatInput || $json.body.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "b80831d8-c653-4203-8706-adedfdb98f77",
+              "name": "sessionId",
+              "value": "={{ $json?.sessionId || $json.body.sessionId}}",
+              "type": "string"
+            },
+            {
+              "id": "7e2f597f-5ca6-4d9b-af9e-2f4124361824",
+              "name": "userId",
+              "value": "={{ $json?.userId || $json.body?.userId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5ac9b55f-7e70-4862-9e59-bad0bc6694b7",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2720, 2016]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Prepare Input').item.json.sessionId }}",
+        "tableName": "zanaflex_chat_message"
+      },
+      "id": "265a22c6-1f1c-4245-af2a-c3bdee8df99f",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.1,
+      "position": [3136, 2272],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zanaflex-prune-history",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "bb3c9bfd-feff-461f-8b68-cbdd495ed581",
+      "name": "PruneWebhook",
+      "position": [2688, 2528],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "webhookId": "f762ae4e-b5d4-42be-982b-e3649b2a45fd"
+    },
+    {
+      "parameters": {
+        "path": "zanaflex_health",
+        "options": {
+          "responseData": "={\"status\": \"ok\"}"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [2656, 1728],
+      "id": "0cd3cdf6-1c1a-4e09-a8a1-73fac1f1d625",
+      "name": "Test Connection",
+      "webhookId": "291e54fe-5a3b-4565-9fa3-c18879fd6d28"
+    },
+    {
+      "parameters": {
+        "model": "gpt-5.4-mini",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [2960, 2288],
+      "id": "d315adfc-a73d-4a8a-8d03-b0b94315a8db",
+      "name": "Azure OpenAI Chat Model",
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "xby4FSbCaCnssJxl",
+          "name": "Azure Open AI account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsAzureOpenAi",
+      "typeVersion": 1,
+      "position": [4080, 2272],
+      "id": "1fad3372-62f1-4282-b511-daf5d55be317",
+      "name": "Embeddings Azure OpenAI",
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "xby4FSbCaCnssJxl",
+          "name": "Azure Open AI account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Expected POST body from front-zanaflex.html:\r\n//   { chatInput, sessionId, userId, userName?, userRole? }\r\n// Re-inject canonical [CONTEXTO DO USUÁRIO: ...] block so the chat-message\r\n// trigger (migration 010) can link rows to users.\r\nconst b = $input.first().json.body || $input.first().json;\r\nif (!b.userId)    throw new Error('userId is required');\r\nif (!b.sessionId) throw new Error('sessionId is required');\r\nif (!b.chatInput) throw new Error('chatInput is required');\r\nconst ctx = `[CONTEXTO DO USUÁRIO: nome=\"${b.userName || ''}\" papel=\"${b.userRole || 'visualizador'}\" ID=\"${b.userId}\"]`;\r\nconst chatInput = b.chatInput.includes('[CONTEXTO DO USUÁRIO')\r\n  ? b.chatInput\r\n  : `${ctx}\\n\\n${b.chatInput}`;\r\nreturn {\r\n  chatInput,\r\n  sessionId: b.sessionId,\r\n  userId:    b.userId,\r\n  userName:  b.userName || '',\r\n  userRole:  b.userRole || 'visualizador',\r\n};\r\n"
+      },
+      "id": "5089fbbd-e07b-4611-98a7-4eba83961be6",
+      "name": "Prepare Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2864, 2016]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT CASE\r\n  WHEN (SELECT raw_user_meta_data->>'role'\r\n          FROM auth.users\r\n         WHERE id = '{{ $json.userId }}'::uuid) = 'admin'\r\n    THEN '[\"*\"]'::jsonb\r\n  ELSE COALESCE(\r\n    (SELECT jsonb_agg(cid)\r\n       FROM zanaflex_user_allowed_categories_for('{{ $json.userId }}'::uuid) cid),\r\n    '[]'::jsonb)\r\nEND AS allowed_ids;\r\n",
+        "options": {}
+      },
+      "id": "24d10790-2e2b-4b4c-bc87-433c8d6c0712",
+      "name": "Get Allowed Categories",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [3040, 2016],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Delete Edited Message": {
+      "main": [
+        [
+          {
+            "node": "PruneResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_knowledge_base": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Documents": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File Contents": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Document Rows": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Prepare Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PruneWebhook": {
+      "main": [
+        [
+          {
+            "node": "Delete Edited Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Azure OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "search_knowledge_base",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Input": {
+      "main": [
+        [
+          {
+            "node": "Get Allowed Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Allowed Categories": {
+      "main": [
+        [
+          {
+            "node": "RAG AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "03d32a206f2d8840fce482e6c587726f18775bd9177e9401c00ca76d3086ad41"
+  }
+}
